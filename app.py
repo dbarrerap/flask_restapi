@@ -1,58 +1,58 @@
 from dotenv import load_dotenv
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow
+from flask import Flask, jsonify, render_template, request
+from models import *
 import os
 
 
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-ma = Marshmallow(app)
-
-
-# Models
-class Genre(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64))
-    games = db.relationship('Game', backref='genre')
-
-class Publisher(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128))
-    releases = db.relationship('Game', backref='publisher')
-
-class Game(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(128))
-    release = db.Column(db.DateTime)
-    genre_id = db.Column(db.Integer, db.ForeignKey('genre.id'))
-    publisher_id = db.Column(db.Integer, db.ForeignKey('publisher.id'), nullable=False)
-
-# Marshmallow Schema
-class GenreSchema(ma.SQLAlchemyAutoSchema):
-    class Meta:
-        model = Genre
-        include_relationships = True
-
-class PublisherSchema(ma.SQLAlchemyAutoSchema):
-    class Meta:
-        model = Publisher
-        include_relationships = True
-
-class GameSchema(ma.SQLAlchemyAutoSchema):
-    class Meta:
-        model = Game
-        include_fk = True
+db.init_app(app)
+ma.init_app(app)
 
 
 # Routes
 @app.route('/')
 def index():
-    return '<h1>Games API</h1>'
+    return render_template('index.html')
+
+@app.route('/game/')
+def game():
+    games = Game.query.all()
+    games_schema = GameSchema(many=True)
+    return jsonify(games_schema.dump(games))
+
+@app.route('/game/<int:id>')
+def game_details(id):
+    game = Game.query.get(id)
+    game_schema = GameSchema()
+    return game_schema.dump(game)
+
+@app.route('/publisher/')
+def publisher():
+    publishers = Publisher.query.all()
+    pubs_schema = PublisherSchema(many=True)
+    return jsonify(pubs_schema.dump(publishers))
+
+@app.route('/publisher/<int:id>')
+def publisher_detail(id):
+    publisher = Publisher.query.get(id)
+    pub_schema = PublisherSchema()
+    return pub_schema.dump(publisher)
+
+@app.route('/genre/')
+def genre():
+    genres = Genre.query.all()
+    genres_schema = GenreSchema(many=True)
+    return jsonify(genres_schema.dump(genres))
+
+@app.route('/genre/<int:id>')
+def genre_details(id):
+    genre = Genre.query.get(id)
+    genre_schema = GenreSchema()
+    return genre_schema.dump(genre)
 
 
 # Main
